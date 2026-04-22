@@ -1,0 +1,21 @@
+[project]
+name = "mog-agent"
+version = "0.1.0"
+description = "smolagents-based Agent service (intent routing + Pipeline tool calls)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "smolagents>=1.5",
+    "litellm>=1.50",
+    "httpx>=0.27",
+    "mcp>=1.6",
+    "redis>=5.0",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "structlog>=24.4",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

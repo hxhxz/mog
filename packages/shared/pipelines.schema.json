@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pipeline I/O Contracts",
+  "description": "PRD §4.1 (P0) + §4.2 (P1) 全部 Pipeline 的输入输出契约",
+  "definitions": {
+    "Priority": { "enum": ["realtime", "background"] },
+
+    "text2image": {
+      "type": "object",
+      "required": ["prompt"],
+      "properties": {
+        "prompt": { "type": "string" },
+        "style_lora": { "type": ["string", "null"] },
+        "negative_prompt": { "type": "string" },
+        "size": { "type": "string", "default": "1024x576" }
+      }
+    },
+    "character2image": {
+      "type": "object",
+      "required": ["reference_image_url", "prompt"],
+      "properties": {
+        "reference_image_url": { "type": "string" },
+        "prompt": { "type": "string" },
+        "character_lora_id": { "type": ["string", "null"] }
+      }
+    },
+    "image2video": {
+      "type": "object",
+      "required": ["image_url"],
+      "properties": {
+        "image_url": { "type": "string" },
+        "camera_motion": { "type": "string", "default": "static" },
+        "duration_sec": { "type": "integer", "default": 3 }
+      }
+    },
+    "keyframe2video": {
+      "type": "object",
+      "required": ["first_frame_url", "last_frame_url", "prompt"],
+      "properties": {
+        "first_frame_url": { "type": "string" },
+        "last_frame_url": { "type": "string" },
+        "prompt": { "type": "string" }
+      }
+    },
+    "talk2video": {
+      "type": "object",
+      "required": ["portrait_url", "audio_url"],
+      "properties": {
+        "portrait_url": { "type": "string" },
+        "audio_url": { "type": "string" }
+      }
+    },
+    "concat": {
+      "type": "object",
+      "required": ["video_urls"],
+      "properties": {
+        "video_urls": { "type": "array", "items": { "type": "string" } },
+        "transition_type": { "type": "string", "default": "fade" }
+      }
+    },
+    "tts_align": {
+      "type": "object",
+      "required": ["full_script_text", "timeline"],
+      "properties": {
+        "full_script_text": { "type": "string" },
+        "timeline": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start": { "type": "number" },
+              "end": { "type": "number" },
+              "text": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "inpainting": {
+      "type": "object",
+      "required": ["image_url", "mask_url", "prompt"],
+      "properties": {
+        "image_url": { "type": "string" },
+        "mask_url": { "type": "string" },
+        "prompt": { "type": "string" }
+      }
+    },
+    "upscale": {
+      "type": "object",
+      "required": ["video_url"],
+      "properties": {
+        "video_url": { "type": "string" },
+        "scale": { "type": "integer", "default": 2 }
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; padding: 0; height: 100%; font-family: system-ui, sans-serif; }
+
+.layout { display: grid; grid-template-columns: 240px 400px 1fr; height: 100vh; }
+.sidebar { background: #1a1f2e; color: #d6d8de; padding: 16px; overflow-y: auto; }
+.chat { background: #ffffff; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; }
+.preview { background: #f6f7fb; padding: 16px; overflow-y: auto; }
+
+.chat-messages { flex: 1; padding: 16px; overflow-y: auto; }
+.chat-composer { border-top: 1px solid #e5e7eb; padding: 12px; display: flex; gap: 8px; }
+.chat-composer input { flex: 1; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; }
+
+.segment-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 12px; cursor: pointer; }
+.segment-card:hover { border-color: #6366f1; }

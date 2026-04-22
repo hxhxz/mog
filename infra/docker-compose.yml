@@ -1,0 +1,98 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mog}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mog}
+      POSTGRES_DB: ${POSTGRES_DB:-mog}
+    ports: ["5432:5432"]
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mog}"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ../services/api
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    env_file: env/.env
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+      - AGENT_SERVICE_URL=http://agent:8100
+    ports: ["8000:8000"]
+    volumes:
+      - ../services/api:/app
+
+  worker:
+    build: ../services/worker
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    env_file: env/.env
+    environment:
+      - POSTGRES_HOST=postgres
+      - REDIS_HOST=redis
+    volumes:
+      - ../services/worker:/app
+
+  agent:
+    build: ../services/agent
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+      api: { condition: service_started }
+    env_file: env/.env
+    environment:
+      - REDIS_HOST=redis
+      - API_BASE_URL=http://api:8000
+    ports: ["8100:8100"]
+    volumes:
+      - ../services/agent:/app
+
+  mcp:
+    build: ../services/agent
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_started }
+    env_file: env/.env
+    environment:
+      - API_BASE_URL=http://api:8000
+    ports: ["8101:8101"]
+    volumes:
+      - ../services/agent:/app
+    command: ["uvicorn", "app.mcp_main:app", "--host", "0.0.0.0", "--port", "8101"]
+
+  web:
+    build: ../apps/web
+    restart: unless-stopped
+    depends_on: [api]
+    ports: ["5173:5173"]
+    volumes:
+      - ../apps/web:/app
+      - /app/node_modules
+
+  comfyui:
+    # MVP 占位：用 nginx 响应 /health, 后续换成 ComfyUI 真实镜像
+    image: nginx:alpine
+    restart: unless-stopped
+    ports: ["8188:80"]
+
+volumes:
+  pg_data:

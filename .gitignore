@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.local
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+infra/env/.env
+!infra/env/.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Build / artifacts
+*.log
+coverage/
+.coverage
+htmlcov/
+
+# Project specific: large media
+storage/
+media/
+*.mp4
+*.mov
+*.safetensors
+*.ckpt
