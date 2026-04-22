@@ -15,9 +15,138 @@ FastAPI (services/api)
     ↓ Celery apply_async → queue_realtime | queue_background
 services/worker
     ↓ run_pipeline(job_id) → 读 job.inputs.workflow → pipeline_client.submit_workflow(workflow)
-    ↓ POST ComfyUI /prompt → 写 OSS
+    ↓ POST ComfyUI /prompt → 写 本地存储
     ↓ notifier.progress/status → Redis Pub/Sub "chan:project:*"
 services/api WSManager 订阅 → broadcast → 前端预览区更新
+```
+
+## 用户旅程时序图
+```mermaid
+sequenceDiagram
+    actor User
+    participant Web
+    participant API
+    participant Agent
+    participant Worker
+    participant ComfyUI
+    participant DB
+
+    User->>Web: 创建 Project
+    Web->>API: POST /projects
+    API->>DB: 插入 Project + 6 条 ProjectStep(PENDING)
+
+    rect rgb(230, 240, 255)
+    Note over User,DB: Step 1-2:SCRIPT / STORYBOARD(Agent 生成 → 人工 REVIEW)
+    User->>Web: 开始 SCRIPT
+    Web->>API: POST /projects/{id}/steps/script/start
+    API->>Agent: /agent/infer (intent=script)
+    Agent->>Agent: LLM 生成剧本
+    Agent-->>API: outputs
+    API->>DB: step.status = REVIEW
+    API-->>Web: 200 outputs
+    User->>Web: 确认
+    Web->>API: POST .../script/confirm
+    API->>DB: step.status = DONE
+    Note over Web,DB: STORYBOARD 同上模式
+    end
+
+    rect rgb(255, 245, 230)
+    Note over User,DB: Step 3-6:流水线生成(Celery + ComfyUI)
+    User->>Web: 开始 TEXT2IMAGE
+    Web->>API: POST .../text2image/start
+    API->>DB: 创建 PipelineJob(chain_id)
+    API->>Worker: Celery apply_async(mog.pipeline.run)
+    Worker->>ComfyUI: POST /prompt (template workflow)
+    loop 轮询
+        Worker->>ComfyUI: GET /history/{id}
+        Worker-->>Web: WebSocket progress
+    end
+    ComfyUI-->>Worker: outputs
+    Worker->>DB: PipelineJob.DONE + step.outputs
+    Worker->>Worker: mog.chain.advance_children
+    Note over Worker,DB: 依次触发 IMAGE2VIDEO → CONCAT → AUDIO<br/>(parent_job_id DAG)
+    end
+
+    rect rgb(255, 230, 230)
+    Note over User,DB: 修改分支:级联重置下游
+    User->>Web: modify(storyboard)
+    Web->>API: POST .../storyboard/modify
+    API->>DB: storyboard.outputs 更新<br/>text2image/image2video/concat/audio → PENDING
+    API-->>Web: 全量 6 步状态
+    end
+```
+
+
+## 数据模型
+
+```mermaid
+erDiagram
+    PROJECT ||--o{ PROJECT_STEP : "1:6"
+    PROJECT ||--o{ PIPELINE_JOB : has
+    PROJECT ||--o{ CHARACTER : has
+    PROJECT ||--o{ SEGMENT : has
+    PROJECT ||--o{ ASSET : produces
+    TEMPLATE ||--o{ PIPELINE_JOB : instantiates
+    PIPELINE_JOB ||--o{ PIPELINE_JOB : "parent_job_id (DAG)"
+
+    PROJECT {
+        uuid id PK
+        string title
+        jsonb context_json
+        string style_lora
+        string audio_track
+        datetime created_at
+    }
+    PROJECT_STEP {
+        uuid id PK
+        uuid project_id FK
+        enum step "SCRIPT|STORYBOARD|TEXT2IMAGE|IMAGE2VIDEO|CONCAT|AUDIO"
+        enum status "PENDING|RUNNING|REVIEW|DONE|FAILED"
+        jsonb outputs_json
+        string chain_id
+    }
+    PIPELINE_JOB {
+        uuid id PK
+        uuid project_id FK
+        uuid template_id FK "nullable"
+        enum pipeline "9 种 P0/P1"
+        enum status
+        float progress
+        uuid parent_job_id FK "自引用"
+        string chain_id
+        jsonb inputs_json
+        jsonb outputs_json
+    }
+    TEMPLATE {
+        uuid id PK
+        enum pipeline
+        jsonb workflow_json
+        jsonb materials_schema
+        string category
+        bool published
+    }
+    CHARACTER {
+        uuid id PK
+        uuid project_id FK
+        string name
+        string reference_image_url
+        string lora_id
+    }
+    SEGMENT {
+        uuid id PK
+        uuid project_id FK
+        int order
+        text content
+        string image_url
+        string video_url
+    }
+    ASSET {
+        uuid id PK
+        uuid project_id FK
+        enum kind "image|video|audio"
+        string url
+        jsonb meta_json
+    }
 ```
 
 ## 模板层
@@ -51,6 +180,8 @@ Agent / 前端
 ```
 
 `workflow` 字段由 ComfyUI 定义，平台不自定义 schema。
+workflow示例如下：
+![alt text](image.png)
 `input_nodes` 仅用于 Agent/前端展示"此模板需要哪些输入"，执行时实际合并由 `_apply_materials` 完成。
 
 ### materials 合并规则
