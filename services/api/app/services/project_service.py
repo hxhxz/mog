@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.project import Project
 from app.repositories.project_repo import ProjectRepository
 from app.schemas.project import ProjectCreate, ProjectOut
+from app.services.project_step_service import ProjectStepService
 
 
 class ProjectService:
@@ -15,6 +16,8 @@ class ProjectService:
         project = Project(name=payload.name, style_lora_id=payload.style_lora_id)
         await self.repo.add(project)
         await self.repo.commit()
+        # 项目创建时自动初始化 6 个流水线步骤
+        await ProjectStepService(self.db).initialize(project.id)
         return ProjectOut.model_validate(project)
 
     async def list(self) -> list[ProjectOut]:
