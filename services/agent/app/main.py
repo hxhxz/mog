@@ -9,16 +9,10 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from app.agent import get_agent
-from app.mcp_server import _register_template_tools
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await _register_template_tools()
-    yield
 
-
-app = FastAPI(title="mog agent", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="mog agent", version="0.1.0")
 
 
 class ChatRequest(BaseModel):

@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: mog_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-mog}
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: mog_redis
     restart: unless-stopped
     ports: ["6379:6379"]
     healthcheck:
@@ -26,6 +28,7 @@ services:
 
   api:
     build: ../services/api
+    container_name: mog_api
     restart: unless-stopped
     depends_on:
       postgres: { condition: service_healthy }
@@ -41,6 +44,8 @@ services:
 
   worker:
     build: ../services/worker
+    image: mog:worker
+    container_name: mog_worker
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }
@@ -54,6 +59,8 @@ services:
 
   agent:
     build: ../services/agent
+    image: mog:agent
+    container_name: mog_agent
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }
@@ -68,6 +75,8 @@ services:
 
   mcp:
     build: ../services/agent
+    image: mog:mcp
+    container_name: mog_mcp
     restart: unless-stopped
     depends_on:
       api: { condition: service_started }
@@ -77,10 +86,11 @@ services:
     ports: ["8101:8101"]
     volumes:
       - ../services/agent:/app
-    command: ["uvicorn", "app.mcp_main:app", "--host", "0.0.0.0", "--port", "8101"]
 
   web:
     build: ../apps/web
+    image: mog:web
+    container_name: mog_web
     restart: unless-stopped
     depends_on: [api]
     ports: ["5173:5173"]
@@ -91,6 +101,7 @@ services:
   comfyui:
     # MVP 占位：用 nginx 响应 /health, 后续换成 ComfyUI 真实镜像
     image: nginx:alpine
+    container_name: mog_comfyui
     restart: unless-stopped
     ports: ["8188:80"]
 
